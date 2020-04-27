@@ -25,6 +25,8 @@ StopWatch::stop('Task 1');
 StopWatch::setTimingHeader();
 ```
 
+![server-timing](https://user-images.githubusercontent.com/2347368/80393363-960e7780-88da-11ea-92e9-63d7fb1aaecd.jpg)
+
 ### Changelog
 
 Please see [CHANGELOG](CHANGELOG.md) for more information on what has changed recently.
