@@ -2,6 +2,7 @@
     "name": "appiusattaprobus/server-timing",
     "description": "Add Server-Timing header information from your apps",
     "type": "library",
+    "version": "1.0.0",
     "keywords": ["server", "timing"],
     "license": "MIT",
     "authors": [
@@ -10,7 +11,6 @@
             "email": "dr.ivanov@nxt.ru"
         }
     ],
-    "minimum-stability": "dev",
     "autoload": {
         "psr-4": {
             "Appiusattaprobus\\ServerTiming\\": "src/"
