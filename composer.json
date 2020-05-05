@@ -2,7 +2,7 @@
     "name": "appiusattaprobus/server-timing",
     "description": "Add Server-Timing header information from your apps",
     "type": "library",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "keywords": ["server", "timing"],
     "license": "MIT",
     "authors": [
