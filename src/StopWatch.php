@@ -5,105 +5,186 @@ namespace Appiusattaprobus\ServerTiming;
 class StopWatch
 {
     const DEFAULT_NAME = 'default';
-    const PRECISION = 5;
 
     private static $timers = [];
 
     /**
-     * Get current microtime
+     * Get timer by name.
      *
-     * @return float
+     * @param string $name
+     * @return Timer
+     * @throws \Exception
      */
-    public static function now()
+    public static function getTimer($name = '')
     {
-        return microtime(true);
+        /** @var Timer|null $timer */
+        $timer = isset(self::$timers[$name])
+            ? self::$timers[$name]
+            : null
+        ;
+        if (is_null($timer)) {
+            throw new \Exception(__CLASS__ . ' timer "' . $name . '" not found');
+        }
+
+        return $timer;
     }
 
     /**
-     * Init new timer
+     * Create new empty timer.
      *
-     * @param string $name - timer name
+     * @param string $name
+     * @return Timer
+     * @throws \Exception
+     */
+    public static function createTimer($name = self::DEFAULT_NAME)
+    {
+        if (isset(self::$timers[$name])) {
+            throw new \Exception(__CLASS__ . ' timer "' . $name . '" already exists');
+        }
+        self::$timers[$name] = (new Timer())->setName($name);
+
+        return self::$timers[$name];
+    }
+
+    /**
+     * Start timer.
+     *
+     * @param string $name
+     * @return Timer
+     * @throws \Exception
      */
     public static function start($name = self::DEFAULT_NAME)
     {
-        self::$timers[$name]['start'] = self::now();
+        /** @var Timer|null $timer */
+        $timer = isset(self::$timers[$name])
+            ? self::$timers[$name]
+            : null
+        ;
+        if (is_null($timer)) {
+            $timer = (new Timer())->setName($name);
+            self::$timers[$name] = $timer;
+        }
+        $timer->start();
+
+        return $timer;
     }
 
     /**
-     * Stop timer
+     * Stop timer.
      *
      * @param string $name
+     * @return Timer
+     * @throws \Exception
      */
     public static function stop($name = self::DEFAULT_NAME)
     {
-        self::$timers[$name]['stop'] = self::now();
+        return self::getTimer($name)->stop();
     }
 
     /**
-     * Get elapsed time
+     * Set timer on pause.
      *
      * @param string $name
-     * @param int $precision
+     * @return Timer
+     * @throws \Exception
+     */
+    public static function pause($name = self::DEFAULT_NAME)
+    {
+        return self::getTimer($name)->pause();
+    }
+
+    /**
+     * Resume timer.
+     *
+     * @param string $name
+     * @return Timer
+     * @throws \Exception
+     */
+    public static function resume($name = self::DEFAULT_NAME)
+    {
+        return self::getTimer($name)->resume();
+    }
+
+    /**
+     * Method for measure closure function.
+     *
+     * @param $name
+     * @param $func
+     * @return Timer
+     * @throws \Exception
+     */
+    public static function measureFunc($name, $func)
+    {
+        if (empty($name)) {
+            throw new \Exception(__CLASS__ . ' measureFunc name cannot be empty');
+        }
+        if (!is_callable($func)) {
+            throw new \Exception(__CLASS__ . ' measureFunc expect callable arg');
+        }
+        /** @var Timer $timer */
+        $timer = self::start($name);
+        $func();
+
+        return $timer->stop();
+    }
+
+    /**
+     * Get elapsed timer time.
+     *
+     * @param string $name
+     * @param null $precision
      * @return float
      * @throws \Exception
      */
-    public static function elapsed($name = self::DEFAULT_NAME, $precision = self::PRECISION)
+    public static function elapsed($name = self::DEFAULT_NAME, $precision = null)
     {
-        if (!isset(self::$timers[$name])) {
-            throw new \Exception(__CLASS__ . ': timer not found');
-        }
-
-        return round(
-            self::now() - self::$timers[$name]['start'],
-            $precision
-        );
+        return $precision
+            ? round(self::getTimer($name)->spendTime(), $precision)
+            : self::getTimer($name)->spendTime()
+        ;
     }
 
     /**
      * @param string $name
      * @return bool
+     * @throws \Exception
      */
-    public static function isTimerStopped($name = self::DEFAULT_NAME)
+    public static function isStopped($name = self::DEFAULT_NAME)
     {
-        return !empty(self::$timers[$name]['stop']);
+        return self::getTimer($name)->isStopped();
     }
 
     /**
-     * @param string $name
-     * @return float
-     */
-    public static function spendTime($name = self::DEFAULT_NAME)
-    {
-        if (self::isTimerStopped($name)) {
-            return self::$timers[$name]['stop'] - self::$timers[$name]['start'];
-        }
-
-        return self::now() - self::$timers[$name]['start'];
-    }
-
-    /**
+     * Get string of Server-Timing header.
+     * See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Server-Timing
+     *
      * @return string
      */
     public static function getTimingHeader()
     {
-        $metrics = [];
         $index = 0;
+        $metrics = [];
+        /** @var Timer $timer */
         foreach (self::$timers as $name => $timer) {
-            if (!self::isTimerStopped($name)) {
-                self::stop($name);
-            }
-            $metrics[] = $index . ';desc="' .   $name . '";dur=' . self::spendTime($name) * 1000;
+            $metrics[] = $index . ';desc="' .   $name . '";dur=' . $timer->spendTime() * 1000;
             $index++;
         }
 
         return 'Server-Timing: ' . implode(', ', $metrics);
     }
 
+    /**
+     * Set Server-Timing header
+     */
     public static function setTimingHeader()
     {
         header(self::getTimingHeader());
     }
 
+    /**
+     * Method for auto set Server-Timing header before script end.
+     * Be sure script not out any data before ends execution!
+     */
     public static function updateHeadersBeforeShutdown()
     {
         register_shutdown_function(function() {
